@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using Emgu.CV;
 using Emgu.Util;
 using Emgu.CV.Structure;
+using Emgu.CV.CvEnum;
 
 namespace FirstTryInCV
 {
@@ -40,20 +41,27 @@ namespace FirstTryInCV
             Bitmap initialImageBitmap = new Bitmap(initialImage.Image);
             Image<Bgr, Byte> sourceImage = new Image<Bgr, byte>(initialImageBitmap);
 
+            var graySourceImage = sourceImage.Convert<Gray, Byte>().PyrDown().PyrUp();
+            graySourceImage.Save("afterSystemSmooth.jpg");
+
             //median filter
             //Image<Bgr, Byte> smoothedImage = sourceImage.SmoothMedian(9);
             //smoothedImage.Save("afterMedian.jpg");
 
             //gaussian
             //sourceImage._SmoothGaussian(5);
+            //sourceImage.Save("afterGaussian.jpg");
+
             //bilatral
-            sourceImage = sourceImage.SmoothBilatral(9, 120, 30);
-            sourceImage.Save("afterBilatral.jpg");
+            //sourceImage = sourceImage.SmoothBilatral(9, 120, 30);
+            //sourceImage.Save("afterBilatral.jpg");
+
+            //simpleBlur
             //sourceImage = sourceImage.SmoothBlur(4, 4);
             //sourceImage.Save("afterBlur.jpg");
 
             //canny edge detector
-            Image<Gray, Byte> resultImage = ImageProccessor.CannyOperator(sourceImage, 120, 30);
+            Image<Gray, Byte> resultImage = ImageProccessor.CannyOperator(graySourceImage.Convert<Bgr, Byte>(), 120, 30);
             resultImage.Save("afterCanny.jpg");
 
             //find contours

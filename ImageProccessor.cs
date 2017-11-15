@@ -17,17 +17,15 @@ namespace FirstTryInCV
         public static Image<Bgr, byte> FindContours(Image<Bgr, byte> sourceImage)
         {
             Image<Bgr, byte> newImage = new Image<Bgr, byte>(sourceImage.Width, sourceImage.Height, new Bgr(0, 0, 0));
-            Image<Gray, byte> convertedImage = sourceImage.Convert<Gray, byte>().ThresholdBinary(new Gray(120), new Gray(255));
+            Image<Gray, byte> convertedImage = sourceImage.Convert<Gray, byte>();
             VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
             Mat hier = new Mat();
 
             CvInvoke.FindContours(convertedImage, contours, hier, RetrType.External, ChainApproxMethod.ChainApproxSimple);
 
-            List<double> angles = new List<double>();
             for (var i = 0; i < contours.Size; i++)
             {
-                CvInvoke.ApproxPolyDP(contours[i], contours[i], 2, true);
-                CvInvoke.ApproxPolyDP(contours[i], contours[i], 2, true);
+                CvInvoke.ApproxPolyDP(contours[i], contours[i], 1, false);
 
                 var vectorOfPoint = contours[i];
                 var vectorSize = vectorOfPoint.Size;
@@ -35,19 +33,21 @@ namespace FirstTryInCV
                 {
                     VectorOfVectorOfPoint arrWithVectors = new VectorOfVectorOfPoint(vectorOfPoint);
                     CvInvoke.DrawContours(newImage, arrWithVectors, -1, new MCvScalar(255, 255, 255));
-
-                    var centerOfMass = GetCenterOfMass(vectorOfPoint.ToArray());
-                    CvInvoke.PutText(newImage, (i + 1).ToString(), centerOfMass, FontFace.HersheyPlain, 1.0, new MCvScalar(255, 0, 0));
-
-                    var boundingRectangle = CvInvoke.BoundingRectangle(vectorOfPoint);
-                    angles.Add(Math.Atan(boundingRectangle.Height / boundingRectangle.Width) * 180 / Math.PI);
-                    newImage.Draw(boundingRectangle, new Bgr(0, 255, 0), 1);
-                    newImage.Save("temp" + (i + 1).ToString() + ".jpg");
-                    FillContour(newImage, vectorOfPoint);
                 }
             }
 
             return newImage;
+        }
+
+        private static double AddBoundingRectangleToContour(VectorOfPoint vectorOfPoint, Image<Bgr, byte> image, int i)
+        {
+            var centerOfMass = GetCenterOfMass(vectorOfPoint.ToArray());
+            CvInvoke.PutText(image, (i + 1).ToString(), centerOfMass, FontFace.HersheyPlain, 1.0, new MCvScalar(255, 0, 0));
+
+            var boundingRectangle = CvInvoke.BoundingRectangle(vectorOfPoint);
+            image.Draw(boundingRectangle, new Bgr(0, 255, 0), 1);
+
+            return Math.Atan(boundingRectangle.Height / boundingRectangle.Width) * 180 / Math.PI;
         }
 
         public static Image<Gray, byte> CannyOperator(Image<Bgr, byte> sourceImage, double thresh = 50.0, double threshLink = 20.0)
@@ -79,7 +79,7 @@ namespace FirstTryInCV
                 Connectivity.EightConnected,
                 FloodFillType.Default);
 
-            sourceImage.Save("temp.jpg");
+            //sourceImage.Save("temp.jpg");
         }
 
         private static Point GetCenterOfMass(Point[] points)
@@ -96,19 +96,46 @@ namespace FirstTryInCV
             return new Point(averageX / points.Length, averageY / points.Length);
         }
 
+        //not fully right method
         public static void AnalyzeControursOrietation(Image<Bgr, byte> sourceImage)
         {
-            Image<Gray, byte> convertedImage = sourceImage.Convert<Gray, byte>().ThresholdBinary(new Gray(120), new Gray(255));
+            Image<Gray, byte> convertedImage = sourceImage.Convert<Gray, byte>();
             Image<Bgr, byte> newImage = new Image<Bgr, byte>(sourceImage.Width, sourceImage.Height, new Bgr(0, 0, 0));
             VectorOfVectorOfPoint contours = new VectorOfVectorOfPoint();
             Mat hier = new Mat();
 
             CvInvoke.FindContours(convertedImage, contours, hier, RetrType.External, ChainApproxMethod.ChainApproxSimple);
 
+            List<double> angles = new List<double>();
             for (var i = 0; i < contours.Size; i++)
             {
                 var contour = contours[i];
-                var length = CvInvoke.ArcLength(contour, false);
+                angles.Add(AddBoundingRectangleToContour(contour, newImage, i));
+
+                VectorOfVectorOfPoint arrWithVectors = new VectorOfVectorOfPoint(contour);
+                CvInvoke.DrawContours(newImage, arrWithVectors, -1, new MCvScalar(255, 255, 255));
+                newImage.Save("temp" + (i + 1).ToString() + ".jpg");
+
+                var points = contour.ToArray();
+                var isFoundCommonPoints = false;
+                for (var j = 0; j < contours.Size; j++)
+                {
+                    if (j != i)
+                    {
+                        var selectedContour = contours[j];
+                        var commonPoints = selectedContour.ToArray().Intersect(points);
+                        if (commonPoints.Count() != 0)
+                        {
+                            isFoundCommonPoints = true;
+                            break;
+                        }
+                    }
+                }
+                if (!isFoundCommonPoints)
+                {
+                    //contour without intersections
+                    ;
+                }
             }
         }
     }
